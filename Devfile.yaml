@@ -1,0 +1,44 @@
+commands:
+    - name: run
+      description: Run the CLI from source (pass arguments after --, e.g. dev run -- version)
+      run: go run . "$@"
+      syncAfter: false
+    - name: build
+      description: Build ./bin/dbdiagram for this machine (version from git describe)
+      run: CGO_ENABLED=0 go build -trimpath -ldflags="-w -s -X main.version=$(git describe --tags --always --dirty 2>/dev/null || echo dev)" -o bin/dbdiagram .
+      syncAfter: false
+    - name: release
+      description: Cross-compile darwin/linux/windows × amd64/arm64 into dist/ with checksums (local only — nothing is published)
+      run: scripts/release.sh
+      syncAfter: false
+    # `dev test` runs BOTH suites. The integration suite needs Docker: it
+    # inspects real MariaDB 11.4 / Postgres 16 containers and runs the real
+    # dbdiagram-api from ../dbdiagram-api for the end-to-end push/pull test.
+    - name: test
+      description: Run unit + integration tests (integration needs Docker and ../dbdiagram-api)
+      run: go test ./... && go test -tags=integration -count=1 -p 1 -timeout 20m ./...
+      syncAfter: false
+    - name: test-unit
+      description: Run unit tests only (no Docker)
+      run: go test ./...
+      syncAfter: false
+    - name: test-integration
+      description: Run the integration suite (MariaDB/Postgres testcontainers + the real API)
+      run: go test -tags=integration -count=1 -p 1 -timeout 20m -v ./...
+      syncAfter: false
+    - name: fmt
+      description: Format code
+      run: gofmt -w -s .
+      syncAfter: false
+    - name: vet
+      description: Run go vet over the plain and integration builds
+      run: go vet ./... && go vet -tags=integration ./...
+      syncAfter: false
+    - name: check
+      description: Run all checks (fmt, vet both builds, unit tests)
+      run: gofmt -w -s . && go vet ./... && go vet -tags=integration ./... && go test ./...
+      syncAfter: false
+    - name: tidy
+      description: Tidy dependencies (keep the go directive at 1.25)
+      run: GOTOOLCHAIN=local go mod tidy
+      syncAfter: false

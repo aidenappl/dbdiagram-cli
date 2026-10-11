@@ -1,0 +1,12 @@
+dbdiagram-cli
+Copyright 2026 Aiden Appleby
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Binary distributions of this product include third-party software compiled
+into the executable — among them Atlas (ariga.io/atlas, Apache-2.0), go-dbml
+(github.com/aidenappl/go-dbml, Apache-2.0, which includes software derived
+from holistics/dbml), go-sql-driver/mysql and hashicorp/hcl (MPL-2.0, used
+unmodified), lib/pq, and modernc.org/sqlite. Their license and NOTICE files,
+and where to obtain the Source Code Form of the MPL-2.0 modules, are reproduced
+in THIRD_PARTY_NOTICES.

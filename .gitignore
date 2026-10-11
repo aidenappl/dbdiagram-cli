@@ -1,0 +1,5 @@
+/bin/
+/dist/
+# per-project pull state written by the CLI (only when this repo is used as a project)
+.dbdiagram/state.json
+.env

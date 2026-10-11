@@ -1,0 +1,122 @@
+name: dbdiagram push
+description: Push a schema (DBML, SQL, schema.rb, or a live database inspection) to a dbdiagram source.
+author: aidenappl
+branding:
+  icon: database
+  color: blue
+
+# Usage (see README.md → Deployment):
+#
+#   - uses: actions/checkout@v4
+#   - uses: aidenappl/dbdiagram-cli@v0.1.0
+#     with:
+#       token: ${{ secrets.DBDIAGRAM_TOKEN }}   # team API token with the sync scope
+#       source-id: 3f1c2a9e-…                    # or commit .dbdiagram/settings.json
+#       entry: db/schema.dbml
+#
+# The CLI is built from this action's own checkout (github.action_path), so the
+# version that runs is exactly the ref in `uses:` — no download, no registry.
+
+inputs:
+  token:
+    description: dbdiagram team API token with the `sync` scope. Pass it from a secret, never inline.
+    required: true
+  source-id:
+    description: Source id. Optional when the repository commits .dbdiagram/settings.json.
+    required: false
+    default: ""
+  entry:
+    description: File to push, relative to working-directory. Optional when settings.json names it.
+    required: false
+    default: ""
+  format:
+    description: "Entry format: dbml, mysql, postgres, mssql or schemarb (default: settings.json, else dbml)."
+    required: false
+    default: ""
+  inspect:
+    description: >-
+      Inspect a live database instead of pushing a file: the `dbdiagram inspect` flags, e.g.
+      "--driver postgres --host db.example.com --user schema_ro --database app --password-env DB_PASSWORD --tls verify-full".
+      The string is split on whitespace only (bash `read -a`): no quoting, no globbing, no
+      variable expansion, so a value cannot contain spaces. Put the password in a secret and map
+      it to the variable with `env:` on this step; naming DBDIAGRAM_TOKEN is refused.
+    required: false
+    default: ""
+  message:
+    description: Version label (defaults to the head commit's subject).
+    required: false
+    default: ""
+  api:
+    description: API origin.
+    required: false
+    default: https://dbdiagram-api.appleby.cloud
+  working-directory:
+    description: Directory the CLI runs in (where .dbdiagram/settings.json lives).
+    required: false
+    default: "."
+  go-version:
+    description: Go toolchain used to build the CLI.
+    required: false
+    default: "1.25"
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Go
+      # Pinned by commit: actions/setup-go v5.6.0 (the v5 tag at the time of
+      # writing, verified with `gh api repos/actions/setup-go/git/ref/tags/v5.6.0`).
+      uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+      with:
+        go-version: ${{ inputs.go-version }}
+        cache-dependency-path: ${{ github.action_path }}/go.sum
+
+    - name: Build dbdiagram
+      shell: bash
+      env:
+        ACTION_REF: ${{ github.action_ref }}
+      run: |
+        set -euo pipefail
+        out="$RUNNER_TEMP/dbdiagram-cli"
+        mkdir -p "$out"
+        bin="dbdiagram"
+        if [ "$RUNNER_OS" = "Windows" ]; then bin="dbdiagram.exe"; fi
+        CGO_ENABLED=0 go build -C "$GITHUB_ACTION_PATH" -trimpath \
+          -ldflags "-w -s -X main.version=${ACTION_REF:-action}" -o "$out/$bin" .
+        echo "$out" >> "$GITHUB_PATH"
+
+    - name: Push
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        DBDIAGRAM_TOKEN: ${{ inputs.token }}
+        DBDIAGRAM_API: ${{ inputs.api }}
+        IN_SOURCE: ${{ inputs.source-id }}
+        IN_ENTRY: ${{ inputs.entry }}
+        IN_FORMAT: ${{ inputs.format }}
+        IN_INSPECT: ${{ inputs.inspect }}
+        IN_MESSAGE: ${{ inputs.message }}
+        HEAD_SUBJECT: ${{ github.event.head_commit.message }}
+      run: |
+        set -euo pipefail
+        # Inputs travel through env, never ${{ }} inside the script, so no
+        # input can inject shell.
+        if [ -n "$DBDIAGRAM_TOKEN" ]; then echo "::add-mask::$DBDIAGRAM_TOKEN"; fi
+        args=(push)
+        if [ -n "$IN_SOURCE" ]; then args+=(--source "$IN_SOURCE"); fi
+        if [ -n "$IN_ENTRY" ]; then args+=(--entry "$IN_ENTRY"); fi
+        if [ -n "$IN_FORMAT" ]; then args+=(--format "$IN_FORMAT"); fi
+        msg="$IN_MESSAGE"
+        if [ -z "$msg" ]; then msg="${HEAD_SUBJECT%%$'\n'*}"; fi
+        if [ -n "$msg" ]; then args+=(--message "$msg"); fi
+        if [ -n "$IN_INSPECT" ]; then
+          # Whitespace splitting only: read -a performs no globbing,
+          # quote removal or expansion.
+          read -r -a extra <<< "$IN_INSPECT"
+          for a in "${extra[@]}"; do
+            case "$a" in
+              *DBDIAGRAM_TOKEN*) echo "::error::inspect must not reference DBDIAGRAM_TOKEN (it is the API token, not a database password)"; exit 1 ;;
+            esac
+          done
+          args+=(--inspect "${extra[@]}")
+        fi
+        dbdiagram "${args[@]}"
