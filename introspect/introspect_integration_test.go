@@ -171,11 +171,16 @@ func TestInspectMariaDB(t *testing.T) {
 
 	// SELECT-only: MariaDB hides REFERENTIAL_CONSTRAINTS, Atlas sees no FK;
 	// the CLI rebuilds them from KEY_COLUMN_USAGE and warns.
-	// MariaDB 11.4 serves TLS with an auto-generated certificate, so the
-	// default (require) works.
+	// MariaDB 11.4 serves TLS with an auto-generated, self-signed
+	// certificate: the default (verify-full) refuses it, and the explicit
+	// insecure-skip-verify opt-in connects.
+	if _, err := DBML(ctx, opts); err == nil {
+		t.Fatal("verify-full accepted a self-signed certificate")
+	}
+	opts.TLS = TLS_INSECURE_SKIP_VERIFY
 	res, err := DBML(ctx, opts)
 	if err != nil {
-		t.Fatalf("inspect (tls require): %v", err)
+		t.Fatalf("inspect (tls insecure-skip-verify): %v", err)
 	}
 	out := res.DBML
 	db := compile(t, out)
@@ -295,12 +300,12 @@ func TestInspectPostgres(t *testing.T) {
 
 	opts := Options{Driver: DRIVER_POSTGRES, Host: c.Host, Port: c.Port, User: "ro", Password: RO_PASSWORD, Database: "app"}
 
-	t.Run("tls require is the default and refuses a plaintext server", func(t *testing.T) {
+	t.Run("tls verify-full is the default and refuses a plaintext server", func(t *testing.T) {
 		// PG* environment is never consulted (pq.Config is built directly).
 		t.Setenv("PGSSLMODE", "disable")
 		t.Setenv("PGOPTIONS", "-c default_transaction_read_only=off")
 		if _, err := DBML(ctx, opts); err == nil {
-			t.Fatal("require connected to a server without TLS")
+			t.Fatal("verify-full connected to a server without TLS")
 		}
 	})
 

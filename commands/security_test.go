@@ -237,7 +237,7 @@ func TestEnvTokenNeverUsesStoredAPI(t *testing.T) {
 	}
 }
 
-// LOW10/LOW11: --password-env DBDIAGRAM_TOKEN is refused; --tls require warns.
+// LOW10/LOW11: --password-env DBDIAGRAM_TOKEN is refused; --tls insecure-skip-verify warns.
 func TestInspectPasswordEnvAndTLSWarning(t *testing.T) {
 	h := newHarness(t)
 	h.vars[config.ENV_TOKEN] = testToken
@@ -245,7 +245,7 @@ func TestInspectPasswordEnvAndTLSWarning(t *testing.T) {
 		t.Fatalf("password-env token: %d %s", code, h.stderr)
 	}
 	h.vars["DBPW"] = "x"
-	h.run("inspect", "--driver", "mysql", "--host", "127.0.0.1", "--port", "1", "--user", "u", "--database", "d", "--password-env", "DBPW", "--timeout", "1s")
+	h.run("inspect", "--driver", "mysql", "--host", "127.0.0.1", "--port", "1", "--user", "u", "--database", "d", "--password-env", "DBPW", "--tls", "require", "--timeout", "1s") // ggignore
 	if !strings.Contains(h.stderr.String(), "verify-full") {
 		t.Fatalf("no tls warning: %s", h.stderr)
 	}

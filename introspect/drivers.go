@@ -132,12 +132,12 @@ func openMySQL(o Options) (*sql.DB, error) {
 // given (and ~/.postgresql/postgresql.crt/.key as a client certificate);
 // ~/.pgpass is consulted only when the password is empty.
 func PostgresConfig(o Options) pq.Config {
-	mode := pq.SSLModeRequire
+	mode := pq.SSLModeVerifyFull
 	switch o.TLS {
 	case TLS_DISABLE:
 		mode = pq.SSLModeDisable
-	case TLS_VERIFY_FULL:
-		mode = pq.SSLModeVerifyFull
+	case TLS_INSECURE_SKIP_VERIFY:
+		mode = pq.SSLModeRequire
 	}
 	return pq.Config{
 		Host:               o.Host,

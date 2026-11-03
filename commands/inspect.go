@@ -19,7 +19,7 @@ import (
 const INSPECT_DEADLINE = 5 * time.Minute
 
 const inspectUsage = `inspect --driver mysql|mariadb|postgres|sqlite --host H [--port P] --user U --database D
-         [--password-env VAR] [--schema S]... [--tls require|verify-full|disable] [--tls-ca FILE]
+         [--password-env VAR] [--schema S]... [--tls verify-full|insecure-skip-verify|disable] [--tls-ca FILE]
          [--timeout 30s] [--out FILE]
 
 The password is read from the environment variable named by --password-env,
@@ -58,7 +58,7 @@ func (f *inspectFlags) register(fs *flag.FlagSet) {
 	fs.StringVar(&f.database, "database", "", "database name (SQLite: the file path)")
 	fs.StringVar(&f.passwordEnv, "password-env", "", "name of the environment variable holding the password")
 	fs.Var(&f.schemas, "schema", "Postgres schema to inspect (repeatable or comma-separated; default all)")
-	fs.StringVar(&f.tls, "tls", introspect.TLS_REQUIRE, "TLS mode: require, verify-full or disable")
+	fs.StringVar(&f.tls, "tls", introspect.TLS_VERIFY_FULL, "TLS mode: verify-full (default), insecure-skip-verify (alias require; no certificate check) or disable")
 	fs.StringVar(&f.tlsCA, "tls-ca", "", "PEM CA bundle for verify-full")
 	fs.DurationVar(&f.timeout, "timeout", introspect.DEFAULT_STATEMENT_TIMEOUT, "per-statement timeout")
 }
@@ -79,8 +79,8 @@ func (f *inspectFlags) options(env *Env) (introspect.Options, error) {
 		// Would hand the dbdiagram token to whatever host --host names.
 		return o, errors.New("--password-env must not name DBDIAGRAM_TOKEN: that is the dbdiagram API token, not a database password")
 	}
-	if o.TLS == introspect.TLS_REQUIRE {
-		fmt.Fprintln(env.Stderr, "warning: --tls require encrypts but does not verify the server's certificate; "+
+	if o.TLS == introspect.TLS_INSECURE_SKIP_VERIFY {
+		fmt.Fprintln(env.Stderr, "warning: --tls insecure-skip-verify encrypts but does not verify the server's certificate; "+
 			"use --tls verify-full (with --tls-ca for a private CA) unless the network path is trusted")
 	}
 	switch {
