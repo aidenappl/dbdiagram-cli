@@ -31,7 +31,7 @@ func TestValidate(t *testing.T) {
 		check   func(*testing.T, Options)
 	}{
 		{"defaults", func(*Options) {}, "", func(t *testing.T, o Options) {
-			if o.Port != 3306 || o.TLS != TLS_REQUIRE || o.StatementTimeout != DEFAULT_STATEMENT_TIMEOUT {
+			if o.Port != 3306 || o.TLS != TLS_VERIFY_FULL || o.StatementTimeout != DEFAULT_STATEMENT_TIMEOUT {
 				t.Fatalf("defaults = %+v", o)
 			}
 		}},
@@ -49,6 +49,11 @@ func TestValidate(t *testing.T) {
 		{"bad port", func(o *Options) { o.Port = 70000 }, "out of range", nil},
 		{"no user", func(o *Options) { o.User = "" }, "--user is required", nil},
 		{"no database", func(o *Options) { o.Database = "" }, "--database is required", nil},
+		{"require alias", func(o *Options) { o.TLS = TLS_REQUIRE }, "", func(t *testing.T, o Options) {
+			if o.TLS != TLS_INSECURE_SKIP_VERIFY {
+				t.Fatalf("require = %q", o.TLS)
+			}
+		}},
 		{"bad tls", func(o *Options) { o.TLS = "prefer" }, "--tls", nil},
 		{"sqlite ok", func(o *Options) { *o = Options{Driver: "sqlite", Database: sqliteFile} }, "", nil},
 		{"sqlite missing", func(o *Options) { *o = Options{Driver: "sqlite", Database: sqliteFile + ".nope"} }, "SQLite database", nil},
@@ -73,7 +78,7 @@ func TestValidate(t *testing.T) {
 }
 
 func TestMySQLConfigIsLockedDown(t *testing.T) {
-	for _, mode := range []string{TLS_REQUIRE, TLS_VERIFY_FULL, TLS_DISABLE} {
+	for _, mode := range []string{TLS_INSECURE_SKIP_VERIFY, TLS_VERIFY_FULL, TLS_DISABLE} {
 		t.Run(mode, func(t *testing.T) {
 			o := Options{Driver: "mysql", Host: "db.example.com", Port: 3306, User: "ro", Password: "p@ss/w?rd", Database: "app", TLS: mode}
 			if err := o.Validate(); err != nil {
@@ -94,9 +99,9 @@ func TestMySQLConfigIsLockedDown(t *testing.T) {
 				if cfg.TLS != nil {
 					t.Fatal("disable must not set TLS")
 				}
-			case TLS_REQUIRE:
+			case TLS_INSECURE_SKIP_VERIFY:
 				if cfg.TLS == nil || !cfg.TLS.InsecureSkipVerify {
-					t.Fatal("require must encrypt without verification")
+					t.Fatal("insecure-skip-verify must encrypt without verification")
 				}
 			case TLS_VERIFY_FULL:
 				if cfg.TLS == nil || cfg.TLS.InsecureSkipVerify || cfg.TLS.ServerName != "db.example.com" {
@@ -136,7 +141,7 @@ func TestPostgresConfigIsStructured(t *testing.T) {
 	if c.Runtime["default_transaction_read_only"] != "on" || c.Runtime["statement_timeout"] != "15000" {
 		t.Fatalf("runtime = %v", c.Runtime)
 	}
-	o.TLS = TLS_REQUIRE
+	o.TLS = TLS_INSECURE_SKIP_VERIFY
 	if PostgresConfig(o).SSLMode != "require" {
 		t.Fatal("require")
 	}

@@ -16,7 +16,7 @@ dbdiagram init --source <sourceID> --entry schema.dbml
 dbdiagram push --message "Add orders"       # schema.dbml → new diagram version
 dbdiagram pull                              # diagram → schema.dbml + schema.dbdiagram (layout)
 
-# straight from a database (read-only session; prefer --tls verify-full)
+# straight from a database (read-only session; TLS verify-full by default)
 DB_PASSWORD=… dbdiagram inspect --driver postgres --host db.example.com --user schema_ro \
   --database app --password-env DB_PASSWORD --tls verify-full > schema.dbml
 dbdiagram inspect … | dbdiagram push --stdin
@@ -65,8 +65,11 @@ directory (`os.Root`), never through a symlink at any path component, never insi
 `.git*`/`.dbdiagram`, and only regular files of bounded size. `--out` is the only way to write
 elsewhere (`--out -` writes to stdout). It never follows HTTP redirects.
 
-For live databases use `--tls verify-full` (add `--tls-ca` for a private CA); the default
-`--tls require` encrypts but does not verify the certificate and warns each time.
+`inspect` defaults to `--tls verify-full`: encrypted, with the server's certificate checked against
+the CA and hostname (add `--tls-ca FILE` for a private CA). To connect to a server whose certificate
+cannot be verified (e.g. MariaDB's auto-generated self-signed one), opt in explicitly with
+`--tls insecure-skip-verify` (`require` is accepted as an alias): it still encrypts, but is open to
+man-in-the-middle and warns each time. `--tls disable` is plaintext, for trusted networks only.
 
 ## Development
 

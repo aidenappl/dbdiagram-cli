@@ -251,10 +251,11 @@ destination is the entry; when the entry's format is not `dbml` (the server stor
   proves they are ignored). lib/pq may still read libpq's standard `~/.postgresql/root.crt` (CA for
   verify-full without `--tls-ca`) and `~/.postgresql/postgresql.crt/.key` (client cert), and
   `~/.pgpass` only when the password is empty. `application_name=dbdiagram-cli`.
-- **TLS** — **recommend `--tls verify-full`** (CA + hostname; `--tls-ca FILE` for a private CA).
-  The default `require` encrypts without checking the certificate (libpq semantics; MariaDB's
-  auto-generated certificate is self-signed) and prints a one-line warning saying so; `disable` is
-  plaintext. A plaintext server is refused by default.
+- **TLS** — the default is **`--tls verify-full`** (CA + hostname; `--tls-ca FILE` for a private CA).
+  `--tls insecure-skip-verify` (alias `require`, libpq's name) is an explicit opt-in that encrypts
+  without checking the certificate (needed for MariaDB's self-signed auto-generated certificate) and
+  prints a one-line warning; it is never selected implicitly. `disable` is plaintext. A plaintext
+  server is refused by default.
 - **Read-only, time-limited sessions**, set on *every* connection by a `driver.Connector` wrapper
   (`sessionConnector`) so a reconnect can never skip them: MySQL/MariaDB
   `SET SESSION TRANSACTION READ ONLY` + `max_execution_time` (MySQL, ms) or `max_statement_time`
@@ -325,7 +326,7 @@ Not a deployed service. Distribution:
 
 Common failure modes: `401` after a token revoke/expiry (re-login); `403/4003` token created
 without `sync`; `409` source paused in the web app; `warning: N foreign key(s) were read from
-KEY_COLUMN_USAGE…` (grant REFERENCES); `tls require` against a server without TLS (use
+KEY_COLUMN_USAGE…` (grant REFERENCES); a certificate that fails `--tls verify-full` (pass `--tls-ca`, or opt in to `--tls insecure-skip-verify`); a server without TLS (use
 `--tls disable` only on a trusted network).
 
 ## 9. Rules & guardrails

@@ -35,9 +35,10 @@ const (
 
 // TLS modes.
 const (
-	TLS_REQUIRE     = "require"     // encrypted, certificate not verified
-	TLS_VERIFY_FULL = "verify-full" // encrypted, CA + hostname verified
-	TLS_DISABLE     = "disable"     // plaintext
+	TLS_VERIFY_FULL          = "verify-full"          // encrypted, CA + hostname verified (default)
+	TLS_INSECURE_SKIP_VERIFY = "insecure-skip-verify" // encrypted, certificate not verified (explicit opt-in)
+	TLS_REQUIRE              = "require"              // alias for insecure-skip-verify (libpq's name)
+	TLS_DISABLE              = "disable"              // plaintext
 )
 
 const (
@@ -112,12 +113,15 @@ func (o *Options) Validate() error {
 		return nil
 	}
 	if o.TLS == "" {
-		o.TLS = TLS_REQUIRE
+		o.TLS = TLS_VERIFY_FULL
+	}
+	if o.TLS == TLS_REQUIRE {
+		o.TLS = TLS_INSECURE_SKIP_VERIFY
 	}
 	switch o.TLS {
-	case TLS_REQUIRE, TLS_VERIFY_FULL, TLS_DISABLE:
+	case TLS_VERIFY_FULL, TLS_INSECURE_SKIP_VERIFY, TLS_DISABLE:
 	default:
-		return fmt.Errorf("--tls %q must be require, verify-full or disable", o.TLS)
+		return fmt.Errorf("--tls %q must be verify-full, insecure-skip-verify (alias require) or disable", o.TLS)
 	}
 	if o.Host == "" {
 		return errors.New("--host is required")
@@ -151,9 +155,10 @@ func (o *Options) tlsConfig() (*tls.Config, error) {
 	switch o.TLS {
 	case TLS_DISABLE:
 		return nil, nil
-	case TLS_REQUIRE:
-		// Encrypt without verifying (libpq's sslmode=require semantics).
-		return &tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS12}, nil //nolint:gosec // documented require mode
+	case TLS_INSECURE_SKIP_VERIFY:
+		// Encrypt without verifying (libpq's sslmode=require semantics);
+		// only reachable through an explicit --tls insecure-skip-verify.
+		return &tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS12}, nil //nolint:gosec // explicit opt-in
 	}
 	cfg := &tls.Config{ServerName: o.Host, MinVersion: tls.VersionTLS12}
 	if o.TLSCA != "" {
