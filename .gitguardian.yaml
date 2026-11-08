@@ -1,0 +1,13 @@
+version: 2
+
+# Scope: this is ggshield's config (local scans, pre-commit, ggshield in CI).
+# The GitGuardian GitHub App that posts the "GitGuardian Security Checks" run
+# on PRs does NOT read it; that check is tuned in the GitGuardian dashboard
+# (Settings -> Exclusions, or ignoring the incident).
+secret:
+  ignored_matches:
+    # `--password-env DBPW` in commands/security_test.go names an environment
+    # variable; it is not a password. The generic password detector reads
+    # the value after a password-looking flag as one (APL-62 / APL-91).
+    - name: password-env test arg (env var name, not a secret)
+      match: DBPW
