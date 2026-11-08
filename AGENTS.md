@@ -356,6 +356,12 @@ KEY_COLUMN_USAGE…` (grant REFERENCES); a certificate that fails `--tls verify-
 - Keep `go 1.25.0`; pin dependencies below versions that need Go 1.26.
 - `CGO_ENABLED=0` must keep building every release target (no cgo SQLite).
 - Do not commit `dist/`, `bin/`, or a project's `.dbdiagram/state.json`.
+- **GitGuardian false positives.** Test args like `--password-env DBPW` name an env var, but the
+  generic password detector flags the value. `.gitguardian.yaml` ignores those matches for
+  ggshield (local, pre-commit). The GitGuardian **GitHub App** PR check does not read that file,
+  and a later `// ggignore` commit can't clear it, because it scans every commit: dismiss the
+  incident in the GitGuardian dashboard instead. Add a new env-var-name value there and in
+  `ignored_matches` together.
 
 ### Nexus
 
